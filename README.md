@@ -47,12 +47,19 @@ controller is unaffected by `nvidia-smi` index reshuffling when cards are added
 or removed. Per-card hardware min/max are read from the driver, so it adapts to
 any card.
 
+**Mobile/laptop GPUs** frequently report no settable power limit. For those the
+daemon runs the identical loop on a different lever — it autotunes the card's **max
+SM clock** (`nvidia-smi -lgc`) instead of the power limit, lowering the clock cap
+when hot and raising it when cool — so a laptop card also settles at the hottest
+clock it can sustain at your target temp.
+
 ## Requirements
 
 - Linux with `nvidia-smi` (NVIDIA proprietary driver).
 - Privilege to change power limits (run as root / via the systemd unit).
-- GPUs that support power-limit management (most do; cards that don't expose a
-  numeric power range are skipped automatically).
+- GPUs with a settable **power limit** (most desktop/server cards) — or, for GPUs
+  without one (many **mobile/laptop** cards), a lockable **clock range**, which the
+  daemon uses as an automatic fallback. Cards exposing neither are skipped.
 
 ## Install
 
@@ -92,6 +99,10 @@ All via environment variables (set them in the systemd unit with
 | `MAX_STEP_W`   | `15`    | Largest single reduce step, in watts. |
 | `GPUS`         | `all`   | Comma-separated UUIDs and/or indices to manage, or `all`. |
 | `DRY_RUN`      | `0`     | `1` = log decisions but never change power limits. |
+| `LGC_MIN_MHZ`  | `210`   | *(clock fallback)* idle floor for the clock lock. |
+| `MIN_CAP_MHZ`  | `600`   | *(clock fallback)* never cap the max clock below this (keep card usable). |
+| `CLOCK_STEP_MHZ` | `90`  | *(clock fallback)* raise step, in MHz. |
+| `MAX_CLOCK_STEP_MHZ` | `300` | *(clock fallback)* largest single reduce step, in MHz. |
 
 Example — hold everything at ≤70 °C, poll every 10 s:
 
